@@ -1,0 +1,43 @@
+name: Build Android AAB (unsigned test)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - .github/workflows/android-aab.yml
+permissions:
+  contents: read
+jobs:
+  android-aab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Create Android wrapper
+        run: |
+          npm init -y
+          npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
+          mkdir -p www
+          cp index.html www/index.html
+          printf '%s\n' '{"appId":"com.miravalabs.blockpuzzle","appName":"Mirava Block Puzzle","webDir":"www"}' > capacitor.config.json
+          npx cap add android
+          npx cap sync android
+      - name: Build unsigned release bundle
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mirava-block-puzzle-unsigned-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 14
